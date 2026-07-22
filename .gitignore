@@ -1,0 +1,22 @@
+# Ambientes Virtuais
+venv/
+env/
+.venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Arquivos de pesos dos modelos (Binários grandes)
+*.pth
+*.pt
+*.onnx
+
+# Datasets e pastas temporárias
+Datasets/
+Dataset_Wadaba/
+*.zip
+*.mp4
+!simulation_belt.mp4
+.ipynb_checkpoints/
+.DS_Store
