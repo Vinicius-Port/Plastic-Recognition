@@ -15,29 +15,52 @@ from torchvision import transforms, models
 from PIL import Image
 from collections import defaultdict
 
+import argparse
+
 # =====================================================================
 # Configurações do Experimento
 # =====================================================================
+parser = argparse.ArgumentParser(description="Treinamento Benchmark de 8 Modelos (LOOO vs Random Split)")
+parser.add_argument("--data_dir", type=str, default=None, help="Caminho para o diretório do dataset")
+parser.add_argument("--epochs", type=int, default=50, help="Número de épocas por modelo")
+args, _ = parser.parse_known_args()
+
 POSSIBLE_DATA_DIRS = [
+    args.data_dir,
+    "/kaggle/input/datasets/vinicius1portugal/dataset-wadaba/Dataset_modificado",
+    "/kaggle/input/datasets/vinicius1portugal/dataset-wadaba",
     "./Dataset_Wadaba",
     "../Dataset_Wadaba",
     "../Datasets/Dataset_Wadaba",
     "./Datasets/Dataset_Wadaba",
+    "/kaggle/input/dataset-wadaba/Dataset_Wadaba",
+    "/kaggle/input/dataset-wadaba",
+    "/kaggle/input/wadaba/Dataset_Wadaba",
+    "/kaggle/input/wadaba",
+    "/content/Dataset_Wadaba",
+    "/content/drive/MyDrive/Dataset_Wadaba",
     r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\ProjetoPlasticRecognition\Datasets\Dataset_Wadaba"
 ]
 
 DATA_DIR = None
 for candidate in POSSIBLE_DATA_DIRS:
-    if os.path.exists(candidate):
-        DATA_DIR = candidate
-        break
+    if candidate and os.path.exists(candidate):
+        # Verifica se realmente contém imagens
+        has_imgs = False
+        for root, _, files in os.walk(candidate):
+            if any(f.lower().endswith(('.jpg', '.jpeg', '.png')) for f in files):
+                has_imgs = True
+                break
+        if has_imgs:
+            DATA_DIR = candidate
+            break
 
 if DATA_DIR is None:
     DATA_DIR = "./Dataset_Wadaba"
 
 IMG_SIZE = (224, 224)
 BATCH_SIZE = 32
-EPOCHS = 50
+EPOCHS = args.epochs
 
 # Configuração de dispositivo (CUDA / DirectML / CPU)
 device = torch.device("cpu")
@@ -108,6 +131,12 @@ def load_all_image_paths(data_dir):
                 img_paths.append(path)
                 labels.append(class_to_idx[class_name])
                 
+    if len(img_paths) == 0:
+        print(f"\n[ERRO] Nenhum arquivo de imagem (.jpg, .png) foi encontrado em: {data_dir}")
+        print("Por favor, verifique se a pasta do dataset foi descompactada e se o caminho está correto!")
+        raise FileNotFoundError(f"Diretório de dataset vazio ou não encontrado: {data_dir}")
+
+    print(f"[INFO] Dataset carregado de '{data_dir}': Total de {len(img_paths)} imagens encontradas.")
     return img_paths, labels, object_images, class_names, class_to_idx
 
 def get_transforms():
