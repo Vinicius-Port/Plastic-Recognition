@@ -23,6 +23,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Treinamento Benchmark de 8 Modelos (LOOO vs Random Split)")
 parser.add_argument("--data_dir", type=str, default=None, help="Caminho para o diretório do dataset")
 parser.add_argument("--epochs", type=int, default=50, help="Número de épocas por modelo")
+parser.add_argument("--run_only", type=str, default=None, help="Executar apenas um modelo específico (ex: modelo_swin_random ou 8)")
 args, _ = parser.parse_known_args()
 
 POSSIBLE_DATA_DIRS = [
@@ -408,6 +409,30 @@ def run_experiments():
         {"name": "modelo_swin_random", "split": "random", "arch": "swin"},
     ]
     
+    if args.run_only:
+        target = args.run_only.lower().strip()
+        filtered = []
+        for i, exp in enumerate(experiments, 1):
+            exp_name = exp["name"].lower()
+            exp_arch = exp["arch"].lower()
+            exp_split = exp["split"].lower()
+            
+            # Condição de busca flexível: por número (1..8), por nome exato/parcial, ou combinação arquitetura+split
+            if (target == str(i) or 
+                target == exp_name or 
+                exp_name in target or 
+                target in exp_name or 
+                (exp_arch in target and exp_split in target)):
+                filtered.append(exp)
+                
+        if filtered:
+            experiments = filtered
+            print("\n*******************************************************")
+            print(f"[INFO] FILTRO ATIVADO! Executando APENAS: {[e['name'] for e in experiments]}")
+            print("*******************************************************\n")
+        else:
+            print(f"\n[AVISO] Nenhum modelo correspondeu ao filtro '{args.run_only}'. Executando todos.")
+
     for exp in experiments:
         name = exp["name"]
         split_type = exp["split"]
