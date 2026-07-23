@@ -327,6 +327,34 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, epochs, d
                 break
     return history
 
+def plot_history(history, model_name):
+    epochs = range(1, len(history.history['accuracy']) + 1)
+    
+    plt.figure(figsize=(12, 4.5))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, history.history['accuracy'], 'b-o', label='Acurácia Treino')
+    plt.plot(epochs, history.history['val_accuracy'], 'r-o', label='Acurácia Validação')
+    plt.title(f'Acurácia vs Épocas ({model_name})')
+    plt.xlabel('Época')
+    plt.ylabel('Acurácia')
+    plt.grid(True)
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, history.history['loss'], 'b-o', label='Perda (Loss) Treino')
+    plt.plot(epochs, history.history['val_loss'], 'r-o', label='Perda (Loss) Validação')
+    plt.title(f'Perda (Loss) vs Épocas ({model_name})')
+    plt.xlabel('Época')
+    plt.ylabel('Perda (Loss)')
+    plt.grid(True)
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig(f"{model_name}_history.png")
+    plt.show()
+    plt.close()
+
 def evaluate_model(model, val_loader, class_names, model_name, device):
     print(f"\n--- Avaliação Detalhada: {model_name} ---")
     model.eval()
@@ -353,6 +381,7 @@ def evaluate_model(model, val_loader, class_names, model_name, device):
     plt.title(f'Matriz de Confusão - {model_name}')
     plt.tight_layout()
     plt.savefig(f"{model_name}_confusion_matrix.png")
+    plt.show()
     plt.close()
     
     acc = (y_true == y_pred).mean()
@@ -432,8 +461,9 @@ def run_experiments():
             epochs=EPOCHS, device=device, early_stopping=early_stopping, scheduler=scheduler
         )
         
-        # 4. Salvar pesos e avaliar
+        # 4. Salvar pesos, gerar gráficos e avaliar
         torch.save(model.state_dict(), weights_filename)
+        plot_history(history, name)
         acc, report = evaluate_model(model, val_loader, class_names, name, device)
         results[name] = acc
         
