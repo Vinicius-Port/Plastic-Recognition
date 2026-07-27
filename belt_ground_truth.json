@@ -1,0 +1,30 @@
+{
+  "video": "simulation_belt.mp4",
+  "fps": 30.0,
+  "events": [
+    {
+      "start_sec": 1.0,
+      "end_sec": 6.0,
+      "object_id": "0006",
+      "ground_truth_class": "PET"
+    },
+    {
+      "start_sec": 7.0,
+      "end_sec": 12.0,
+      "object_id": "0023",
+      "ground_truth_class": "PE_HD"
+    },
+    {
+      "start_sec": 13.0,
+      "end_sec": 18.0,
+      "object_id": "0036",
+      "ground_truth_class": "PP"
+    },
+    {
+      "start_sec": 19.0,
+      "end_sec": 24.0,
+      "object_id": "0030",
+      "ground_truth_class": "PS"
+    }
+  ]
+}
