@@ -70,10 +70,41 @@ def resolve_model_path(requested_path=None):
         return requested_path
     raise FileNotFoundError("Nenhum arquivo de pesos (.pth) foi encontrado!")
 
-def run_belt_simulation(model_path, arch, video_path="simulation_belt.mp4", gt_path="belt_ground_truth.json", output_dir=None, show_window=True, cooldown_sec=1.5):
+POSSIBLE_VIDEO_PATHS = [
+    "data/simulation_belt.mp4",
+    "simulation_belt.mp4",
+    "../data/simulation_belt.mp4"
+]
+
+POSSIBLE_GT_PATHS = [
+    "data/belt_ground_truth.json",
+    "belt_ground_truth.json",
+    "../data/belt_ground_truth.json"
+]
+
+def resolve_video_path(requested_path=None):
+    if requested_path and os.path.exists(requested_path):
+        return requested_path
+    for cand in POSSIBLE_VIDEO_PATHS:
+        if os.path.exists(cand):
+            return cand
+    return requested_path if requested_path else "data/simulation_belt.mp4"
+
+def resolve_gt_path(requested_path=None):
+    if requested_path and os.path.exists(requested_path):
+        return requested_path
+    for cand in POSSIBLE_GT_PATHS:
+        if os.path.exists(cand):
+            return cand
+    return requested_path if requested_path else "data/belt_ground_truth.json"
+
+def run_belt_simulation(model_path, arch, video_path="data/simulation_belt.mp4", gt_path="data/belt_ground_truth.json", output_dir=None, show_window=True, cooldown_sec=1.5):
     model_path = resolve_model_path(model_path)
+    video_path = resolve_video_path(video_path)
+    gt_path = resolve_gt_path(gt_path)
     print("\n=======================================================")
     print(f"SIMULAÇÃO NA ESTEIRA EM TEMPO REAL: {os.path.basename(model_path)}")
+    print(f"Vídeo: {video_path} | Gabarito: {gt_path}")
     print("=======================================================")
 
     if not os.path.exists(video_path):

@@ -2,6 +2,11 @@ import os
 import sys
 import argparse
 
+# Add pipeline module directory to sys.path
+pipeline_module_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pipeline")
+if pipeline_module_dir not in sys.path:
+    sys.path.insert(0, pipeline_module_dir)
+
 import ingest_dataset
 import train_pipeline
 import model_registry
@@ -43,8 +48,8 @@ def main():
     sim_parser = subparsers.add_parser("simulate", help="Executar simulação da esteira em tempo real com Gabarito")
     sim_parser.add_argument("--model_path", type=str, default="outputs/modelo_resnet_looo/model.pth", help="Caminho dos pesos (.pth)")
     sim_parser.add_argument("--arch", type=str, default="resnet", choices=["cnn", "resnet", "convnext", "swin"], help="Arquitetura")
-    sim_parser.add_argument("--video", type=str, default="simulation_belt.mp4", help="Vídeo da esteira")
-    sim_parser.add_argument("--gt", type=str, default="belt_ground_truth.json", help="Arquivo de Gabarito (Ground Truth)")
+    sim_parser.add_argument("--video", type=str, default="data/simulation_belt.mp4", help="Vídeo da esteira")
+    sim_parser.add_argument("--gt", type=str, default="data/belt_ground_truth.json", help="Arquivo de Gabarito (Ground Truth)")
     sim_parser.add_argument("--headless", action="store_true", help="Executar sem janela gráfica")
 
     # 7. Run All
@@ -97,7 +102,7 @@ def main():
         ingest_dataset.run_quality_gate("./Dataset_Wadaba")
         train_pipeline.run_single_experiment({"name": "modelo_resnet_looo", "split": "looo", "arch": "resnet"}, "./Dataset_Wadaba", epochs=2)
         model_registry.compile_leaderboard()
-        simulate_belt_pipeline.run_belt_simulation("outputs/modelo_resnet_looo/model.pth", "resnet", video_path="simulation_belt.mp4", gt_path="belt_ground_truth.json", show_window=False)
+        simulate_belt_pipeline.run_belt_simulation("outputs/modelo_resnet_looo/model.pth", "resnet", video_path="data/simulation_belt.mp4", gt_path="data/belt_ground_truth.json", show_window=False)
 
 if __name__ == '__main__':
     main()

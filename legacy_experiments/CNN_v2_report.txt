@@ -1,0 +1,11 @@
+              precision    recall  f1-score   support
+
+       Other       0.00      0.00      0.00         1
+         PET       0.47      0.10      0.17       440
+       PE_HD       0.12      0.44      0.18       120
+          PP       0.30      0.53      0.38       160
+          PS       0.38      0.03      0.05       120
+
+    accuracy                           0.22       841
+   macro avg       0.25      0.22      0.16       841
+weighted avg       0.37      0.22      0.19       841
