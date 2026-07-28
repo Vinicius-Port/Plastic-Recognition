@@ -409,21 +409,24 @@ def run_experiments():
         {"name": "modelo_swin_random", "split": "random", "arch": "swin"},
     ]
     
+    # Suporte a múltiplos filtros em --run_only (ex: --run_only 4,8 ou --run_only swin_looo,swin_random ou --run_only swin)
     if args.run_only:
-        target = args.run_only.lower().strip()
+        raw_targets = [t.strip().lower() for t in re.split(r'[,;\s]+', args.run_only) if t.strip()]
         filtered = []
         for i, exp in enumerate(experiments, 1):
             exp_name = exp["name"].lower()
             exp_arch = exp["arch"].lower()
             exp_split = exp["split"].lower()
             
-            # Condição de busca flexível: por número (1..8), por nome exato/parcial, ou combinação arquitetura+split
-            if (target == str(i) or 
-                target == exp_name or 
-                exp_name in target or 
-                target in exp_name or 
-                (exp_arch in target and exp_split in target)):
-                filtered.append(exp)
+            for target in raw_targets:
+                if (target == str(i) or 
+                    target == exp_name or 
+                    exp_name in target or 
+                    target in exp_name or 
+                    (exp_arch in target and exp_split in target)):
+                    if exp not in filtered:
+                        filtered.append(exp)
+                    break
                 
         if filtered:
             experiments = filtered
@@ -431,19 +434,25 @@ def run_experiments():
             print(f"[INFO] FILTRO ATIVADO! Executando APENAS: {[e['name'] for e in experiments]}")
             print("*******************************************************\n")
         else:
-            print(f"\n[AVISO] Nenhum modelo correspondeu ao filtro '{args.run_only}'. Executando todos.")
+            print(f"\n[AVISO] Nenhum modelo correspondeu ao filtro '{args.run_only}'. Executando todos os 8 modelos.")
+
+    import shutil
+    out_dir_base = "outputs"
+    os.makedirs(out_dir_base, exist_ok=True)
 
     for exp in experiments:
         name = exp["name"]
         split_type = exp["split"]
         arch = exp["arch"]
         weights_filename = f"{name}.pth"
+        model_out_dir = os.path.join(out_dir_base, name)
+        os.makedirs(model_out_dir, exist_ok=True)
         
         print("\n=======================================================")
         print(f"EXPERIMENTO: {name.upper()} (Divisão: {split_type.upper()} | Arquitetura: {arch.upper()})")
         print("=======================================================")
         
-        if os.path.exists(weights_filename):
+        if os.path.exists(weights_filename) or os.path.exists(os.path.join(model_out_dir, weights_filename)):
             print(f"[INFO] Arquivo {weights_filename} já existe. Pulando treinamento...")
             continue
             
@@ -486,14 +495,29 @@ def run_experiments():
             epochs=EPOCHS, device=device, early_stopping=early_stopping, scheduler=scheduler
         )
         
-        # 4. Salvar pesos, gerar gráficos e avaliar
+        # 4. Salvar pesos, gerar gráficos e avaliar (no diretório atual e na pasta outputs)
         torch.save(model.state_dict(), weights_filename)
+        torch.save(model.state_dict(), os.path.join(model_out_dir, weights_filename))
+        
         plot_history(history, name)
         acc, report = evaluate_model(model, val_loader, class_names, name, device)
         results[name] = acc
         
+        # Copia os arquivos gerados para a pasta dedicada do modelo
+        for extra_file in [f"{name}_history.png", f"{name}_confusion_matrix.png", f"{name}_report.txt"]:
+            if os.path.exists(extra_file):
+                shutil.copy(extra_file, os.path.join(model_out_dir, extra_file))
+                
+        # 5. Compacta automaticamente todos os outputs para persistência garantida no Kaggle
+        try:
+            zip_path = shutil.make_archive("Kaggle_Results_Outputs", "zip", out_dir_base)
+            print(f"\n[KAGGLE PERSISTÊNCIA] Outputs salvos e compactados com sucesso em: {zip_path}")
+            print(f"[KAGGLE PERSISTÊNCIA] Pasta do modelo salva em: {os.path.abspath(model_out_dir)}")
+        except Exception as e:
+            print(f"[AVISO KAGGLE] Não foi possível criar o arquivo ZIP: {e}")
+        
     print("\n=======================================================")
-    print("RESUMO COMPARATIVO DOS 8 MODELOS")
+    print("RESUMO COMPARATIVO DOS MODELOS TREINADOS")
     print("=======================================================")
     for model_name, acc in results.items():
         print(f"{model_name}: Acurácia de Validação = {acc*100:.2f}%")
