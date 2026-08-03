@@ -24,10 +24,18 @@ parser = argparse.ArgumentParser(description="Treinamento Benchmark de 8 Modelos
 parser.add_argument("--data_dir", type=str, default=None, help="Caminho para o diretório do dataset")
 parser.add_argument("--epochs", type=int, default=50, help="Número de épocas por modelo")
 parser.add_argument("--run_only", type=str, default=None, help="Executar apenas um modelo específico (ex: modelo_swin_random ou 8)")
+parser.add_argument("--version", type=str, default=None, help="Versão do modelo (ex: v2, v3, exp2) para criar um novo modelo sem sobrescrever")
+parser.add_argument("--force", action="store_true", help="Forçar novo treinamento mesmo que o arquivo de pesos já exista")
 args, _ = parser.parse_known_args()
 
 POSSIBLE_DATA_DIRS = [
     args.data_dir,
+    "/kaggle/input/datasetwadaba/Dataset_Wadaba_PlusOther",
+    "/kaggle/input/datasetwadaba",
+    "/kaggle/input/datasets/vinicius1portugal/datasetwadaba/Dataset_Wadaba_PlusOther",
+    "/kaggle/input/datasets/vinicius1portugal/datasetwadaba",
+    "/kaggle/input/dataset-wadaba-plusother/Dataset_Wadaba_PlusOther",
+    "/kaggle/input/dataset-wadaba-plusother",
     "/kaggle/input/datasets/vinicius1portugal/dataset-wadaba/Dataset_modificado",
     "/kaggle/input/datasets/vinicius1portugal/dataset-wadaba",
     "./Dataset_Wadaba",
@@ -40,7 +48,7 @@ POSSIBLE_DATA_DIRS = [
     "/kaggle/input/wadaba",
     "/content/Dataset_Wadaba",
     "/content/drive/MyDrive/Dataset_Wadaba",
-    r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\ProjetoPlasticRecognition\Datasets\Dataset_Wadaba"
+    r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\Datasets\Dataset_Wadaba"
 ]
 
 DATA_DIR = None
@@ -441,7 +449,8 @@ def run_experiments():
     os.makedirs(out_dir_base, exist_ok=True)
 
     for exp in experiments:
-        name = exp["name"]
+        base_name = exp["name"]
+        name = f"{base_name}_{args.version}" if args.version else base_name
         split_type = exp["split"]
         arch = exp["arch"]
         weights_filename = f"{name}.pth"
@@ -452,8 +461,8 @@ def run_experiments():
         print(f"EXPERIMENTO: {name.upper()} (Divisão: {split_type.upper()} | Arquitetura: {arch.upper()})")
         print("=======================================================")
         
-        if os.path.exists(weights_filename) or os.path.exists(os.path.join(model_out_dir, weights_filename)):
-            print(f"[INFO] Arquivo {weights_filename} já existe. Pulando treinamento...")
+        if not args.force and (os.path.exists(weights_filename) or os.path.exists(os.path.join(model_out_dir, weights_filename))):
+            print(f"[INFO] Arquivo {weights_filename} já existe. Pulando treinamento (use --force para re-treinar)...")
             continue
             
         # 1. Carregar dataset com o split correspondente
