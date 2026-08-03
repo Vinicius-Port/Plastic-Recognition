@@ -8,6 +8,7 @@ if pipeline_module_dir not in sys.path:
     sys.path.insert(0, pipeline_module_dir)
 
 import ingest_dataset
+import ingest_other_background_swap
 import train_pipeline
 import model_registry
 import simulate_belt_pipeline
@@ -20,12 +21,19 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command", help="Comandos disponíveis do pipeline")
 
-    # 1. Ingestão
+    # 1. Ingestão Padrão
     ingest_parser = subparsers.add_parser("ingest", help="Ingerir e padronizar novas imagens no formato WaDaBa")
     ingest_parser.add_argument("--incoming", type=str, required=True, help="Diretório com novas imagens")
     ingest_parser.add_argument("--dataset_dir", type=str, default="./Dataset_Wadaba", help="Diretório alvo do dataset")
     ingest_parser.add_argument("--obj_id", type=str, default=None, help="ID do objeto (ex: 0105)")
     ingest_parser.add_argument("--class_name", type=str, default=None, help="Classe (PET, PE_HD, PP, PS, Other)")
+
+    # 1b. Ingestão com Substituição de Fundo (Qualquer Classe)
+    swap_parser = subparsers.add_parser("ingest_swap", help="Substituir fundo branco/claro de novas imagens pela esteira")
+    swap_parser.add_argument("--incoming", type=str, required=True, help="Diretório com novas imagens de fundo branco")
+    swap_parser.add_argument("--dataset_dir", type=str, default="./Dataset_Wadaba", help="Diretório alvo do dataset")
+    swap_parser.add_argument("--class_name", type=str, default="Other", help="Classe de destino (PET, PE_HD, PP, PS, Other)")
+    swap_parser.add_argument("--texture", type=str, default="data/esteira_textura.jpg", help="Textura da esteira")
 
     # 2. Quality Gate
     subparsers.add_parser("quality", help="Executar Data Quality Gate no dataset")
@@ -63,6 +71,10 @@ def main():
 
     if args.command == "ingest":
         ingest_dataset.ingest_batch_directory(args.incoming, args.dataset_dir, args.obj_id, args.class_name)
+        ingest_dataset.run_quality_gate(args.dataset_dir)
+
+    elif args.command == "ingest_swap":
+        ingest_other_background_swap.process_white_bg_directory(args.incoming, args.dataset_dir, args.texture, args.class_name)
         ingest_dataset.run_quality_gate(args.dataset_dir)
 
     elif args.command == "quality":
