@@ -297,7 +297,8 @@ if __name__ == '__main__':
     parser.add_argument("--model", type=str, default=r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\modelos0408\modelo_convnext_looo.pth", help="Caminho do arquivo .pth do modelo")
     parser.add_argument("--model_type", type=str, default="convnext", choices=["convnext", "resnet", "cnn", "swin"], help="Tipo da arquitetura")
     parser.add_argument("--img_dir", type=str, required=True, help="Diretório ou caminho da imagem de teste")
-    parser.add_argument("--output_dir", type=str, default="./Resultados_Modelos/v5_benchmark_expanded_results_v2/xai_heatmaps", help="Diretório para salvar os mapas de calor")
+    default_out = r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\Resultados_Modelos\v5_benchmark_expanded_results_v2\xai_heatmaps"
+    parser.add_argument("--output_dir", type=str, default=default_out, help="Diretório para salvar os mapas de calor")
     parser.add_argument("--models_dir", type=str, default=r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\modelos0408", help="Pasta com todos os modelos salvos")
     parser.add_argument("--limit", type=int, default=5, help="Quantidade de imagens a analisar")
 
