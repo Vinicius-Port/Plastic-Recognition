@@ -205,40 +205,127 @@ def run_xai_gradcam(model_path, model_type, image_path, output_path):
 
     return pred_class, ratio, output_path
 
+def generate_multi_model_grid_panel(image_path, models_dir, output_grid_path):
+    """
+    Gera automaticamente um painel visual em grade comparativa (Side-by-Side)
+    mostrando a mesma imagem sintética sob todos os modelos (ConvNeXt, ResNet, Swin-T, Custom CNN).
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    classes = ['Other', 'PET', 'PE_HD', 'PP', 'PS']
+
+    orig_pil = Image.open(image_path).convert("RGB")
+    orig_np = np.array(orig_pil.resize((224, 224)))
+    input_tensor = transform(orig_pil).unsqueeze(0).to(device)
+
+    models_to_test = [
+        ("modelo_convnext_looo.pth", "convnext", "ConvNeXt-Tiny"),
+        ("modelo_resnet_looo.pth", "resnet", "ResNet-50"),
+        ("modelo_swin_looo.pth", "swin", "Swin-Transformer"),
+        ("modelo_cnn_looo.pth", "cnn", "Custom CNN")
+    ]
+
+    # Bloco 1: Imagem Original Sintética
+    blocks = []
+    blk_orig = np.zeros((224 + 32, 224, 3), dtype=np.uint8)
+    lbl_orig = np.zeros((32, 224, 3), dtype=np.uint8)
+    cv2.putText(lbl_orig, "Imagem Sintetica Original", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    blk_orig[:32, :] = lbl_orig
+    blk_orig[32:, :] = orig_np
+    blocks.append(blk_orig)
+
+    for pth_name, arch_type, display_name in models_to_test:
+        pth_path = os.path.join(models_dir, pth_name)
+        if not os.path.exists(pth_path):
+            continue
+
+        if "convnext" in arch_type:
+            model = get_convnext_tiny(5)
+            target_layer = model.features[-1]
+        elif "resnet" in arch_type:
+            model = get_resnet50(5)
+            target_layer = model.layer4[-1]
+        elif "cnn" in arch_type:
+            model = CustomCNN(5)
+            target_layer = model.features[12]
+        elif "swin" in arch_type:
+            model = get_swin_tiny(5)
+            target_layer = model.norm
+
+        model.load_state_dict(torch.load(pth_path, map_location=device))
+        model.to(device)
+        model.eval()
+
+        gradcam = GradCAM(model, target_layer)
+        heatmap, pred_idx = gradcam.generate_heatmap(input_tensor)
+        pred_class = classes[pred_idx] if pred_idx < len(classes) else f"Classe_{pred_idx}"
+
+        heatmap_resized = cv2.resize(heatmap, (224, 224))
+        heatmap_color = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
+        overlay = cv2.addWeighted(orig_np, 0.6, heatmap_color, 0.4, 0)
+
+        blk = np.zeros((224 + 32, 224, 3), dtype=np.uint8)
+        lbl = np.zeros((32, 224, 3), dtype=np.uint8)
+        cv2.putText(lbl, f"{display_name}", (5, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(lbl, f"Pred: {pred_class}", (5, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 255, 255), 1, cv2.LINE_AA)
+        blk[:32, :] = lbl
+        blk[32:, :] = overlay
+        blocks.append(blk)
+
+    if blocks:
+        # Monta a grade lado a lado
+        row1 = np.hstack(blocks[:3])
+        row2 = np.hstack(blocks[3:])
+        # Completa row2 se necessário
+        if len(blocks[3:]) < 3:
+            dummy_fill = np.zeros((224 + 32, 224 * (3 - len(blocks[3:])), 3), dtype=np.uint8)
+            row2 = np.hstack([row2, dummy_fill])
+
+        full_grid = np.vstack([row1, row2])
+
+        os.makedirs(os.path.dirname(output_grid_path), exist_ok=True)
+        cv2.imwrite(output_grid_path, cv2.cvtColor(full_grid, cv2.COLOR_RGB2BGR))
+        print(f"  - [GRADE COMPARATIVA] Painel com Swin-T, ConvNeXt, ResNet e CNN salvo em: {output_grid_path}")
+        return output_grid_path
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Ferramenta de Auditoria XAI Grad-CAM e Detecção de Shortcut Learning")
-    parser.add_argument("--model", type=str, required=True, help="Caminho do arquivo .pth do modelo")
-    parser.add_argument("--model_type", type=str, required=True, choices=["convnext", "resnet", "cnn", "swin"], help="Tipo da arquitetura")
-    parser.add_argument("--img_dir", type=str, required=True, help="Diretório com imagens de teste")
+    parser.add_argument("--model", type=str, default=r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\modelos0408\modelo_convnext_looo.pth", help="Caminho do arquivo .pth do modelo")
+    parser.add_argument("--model_type", type=str, default="convnext", choices=["convnext", "resnet", "cnn", "swin"], help="Tipo da arquitetura")
+    parser.add_argument("--img_dir", type=str, required=True, help="Diretório ou caminho da imagem de teste")
     parser.add_argument("--output_dir", type=str, default="./Resultados_Modelos/v5_benchmark_expanded_results_v2/xai_heatmaps", help="Diretório para salvar os mapas de calor")
+    parser.add_argument("--models_dir", type=str, default=r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\modelos0408", help="Pasta com todos os modelos salvos")
     parser.add_argument("--limit", type=int, default=5, help="Quantidade de imagens a analisar")
 
     args = parser.parse_args()
 
-    if os.path.exists(args.img_dir):
+    if os.path.isfile(args.img_dir):
+        imgs = [args.img_dir]
+    elif os.path.exists(args.img_dir):
         imgs = [os.path.join(args.img_dir, f) for f in os.listdir(args.img_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))][:args.limit]
-        os.makedirs(args.output_dir, exist_ok=True)
+    else:
+        imgs = []
 
-        print(f"\n=======================================================")
-        print(f"AUDITORIA XAI GRAD-CAM: {args.model_type.upper()} ({len(imgs)} imagens)")
-        print(f"=======================================================")
+    os.makedirs(args.output_dir, exist_ok=True)
 
-        ratios = []
-        for i, img_path in enumerate(imgs):
-            out_name = f"{args.model_type}_gradcam_{i+1}_{os.path.basename(img_path)}"
-            out_path = os.path.join(args.output_dir, out_name)
-            pred_class, ratio, saved_p = run_xai_gradcam(args.model, args.model_type, img_path, out_path)
-            ratios.append(ratio)
+    print(f"\n=======================================================")
+    print(f"AUDITORIA XAI GRAD-CAM: {args.model_type.upper()} ({len(imgs)} imagens)")
+    print(f"=======================================================")
 
-        avg_ratio = np.mean(ratios) if ratios else 0.0
-        print(f"\n-------------------------------------------------------")
-        print(f"RESULTADO FINAL DA AUDITORIA PARA {args.model_type.upper()}:")
-        print(f"  - Razão Média (Miolo / Borda Sintética): {avg_ratio:.3f}")
-        if avg_ratio >= 1.0:
-            print(f"  - CONCLUSAO: [OK] O modelo foca predominantemente nas feicoes fisicas internas do objeto.")
-            print(f"    Sem evidencias de atalho por borda sintetica!")
-        else:
-            print(f"  - CONCLUSAO: [ALERTA] O modelo foca predominantemente nos artefatos perifericos de corte.")
-            print(f"    Alerta de Shortcut Learning ativado!")
-        print(f"=======================================================\n")
+    for i, img_path in enumerate(imgs):
+        out_name = f"{args.model_type}_gradcam_{i+1}_{os.path.basename(img_path)}"
+        out_path = os.path.join(args.output_dir, out_name)
+        pred_class, ratio, saved_p = run_xai_gradcam(args.model, args.model_type, img_path, out_path)
+
+        # Gera AUTOMATICAMENTE o painel em grade comparativo com TODOS os modelos (incluindo Swin-T)
+        grid_out_name = f"GRADE_COMPARATIVA_{i+1}_{os.path.basename(img_path)}"
+        grid_out_path = os.path.join(args.output_dir, "grades_comparativas", grid_out_name)
+        generate_multi_model_grid_panel(img_path, args.models_dir, grid_out_path)
+
+    print(f"=======================================================\n")
+
 
