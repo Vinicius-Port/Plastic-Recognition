@@ -152,18 +152,22 @@ def load_all_image_paths(data_dir):
     print(f"[INFO] Dataset carregado de '{data_dir}': Total de {len(img_paths)} imagens encontradas.")
     return img_paths, labels, object_images, class_names, class_to_idx
 
-def get_transforms():
-    train_transform = transforms.Compose([
+def get_transforms(enable_random_erasing=True):
+    train_ops = [
         transforms.Resize(IMG_SIZE),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(72),
+        transforms.RandomRotation(45),
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
-        transforms.RandomPerspective(distortion_scale=0.1, p=0.5),
-        transforms.RandomResizedCrop(IMG_SIZE, scale=(0.8, 1.2), ratio=(0.9, 1.1)),
+        transforms.RandomPerspective(distortion_scale=0.1, p=0.4),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    ]
+    if enable_random_erasing:
+        # Random Erasing com valor neutro (0) para apagar pequenos blocos (2% a 20%) no corpo do objeto
+        train_ops.append(transforms.RandomErasing(p=0.4, scale=(0.02, 0.20), value=0))
+
+    train_transform = transforms.Compose(train_ops)
     val_transform = transforms.Compose([
         transforms.Resize(IMG_SIZE),
         transforms.ToTensor(),
