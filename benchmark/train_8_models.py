@@ -30,6 +30,9 @@ args, _ = parser.parse_known_args()
 
 POSSIBLE_DATA_DIRS = [
     args.data_dir,
+    r"C:\Users\Vinicius\Desktop\MestradoCodeAnti\Datasets\Dataset_Wadaba_MaskedBlack",
+    "/kaggle/input/dataset-wadaba-maskedblack/Dataset_Wadaba_MaskedBlack",
+    "/kaggle/input/dataset-wadaba-maskedblack",
     "/kaggle/input/dataset0308/Dataset_Wadaba_PlusOther",
     "/kaggle/input/dataset0308",
     "/kaggle/input/datasets/vinicius1portugal/dataset0308/Dataset_Wadaba_PlusOther",
