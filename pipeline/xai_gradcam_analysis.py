@@ -17,25 +17,18 @@ from torchvision import models, transforms
 class CustomCNN(nn.Module):
     def __init__(self, num_classes=5):
         super(CustomCNN, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.dropout = nn.Dropout(0.3)
-        self.fc1 = nn.Linear(128 * 28 * 28, 256)
-        self.fc2 = nn.Linear(256, num_classes)
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1), nn.BatchNorm2d(32), nn.ReLU(), nn.MaxPool2d(2, 2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(2, 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1), nn.BatchNorm2d(128), nn.ReLU(), nn.MaxPool2d(2, 2),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1), nn.BatchNorm2d(256), nn.ReLU(), nn.MaxPool2d(2, 2)
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(), nn.Dropout(0.5), nn.Linear(256 * 14 * 14, 128), nn.ReLU(), nn.Linear(128, num_classes)
+        )
 
     def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-        x = x.view(x.size(0), -1)
-        x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
-        return x
+        return self.classifier(self.features(x))
 
 def get_resnet50(num_classes=5):
     model = models.resnet50(weights=None)
@@ -89,15 +82,20 @@ class GradCAM:
         gradients = self.gradients.data.cpu().numpy()[0]
         activations = self.activations.data.cpu().numpy()[0]
 
-        # Média dos gradientes por canal (GAP sobre os gradientes)
-        weights = np.mean(gradients, axis=(1, 2))
+        # Trata diferença entre formato CNN (C, H, W) e Swin (H, W, C)
+        if len(activations.shape) == 3 and activations.shape[0] not in [7, 14, 28, 56]:
+            # Formato CNN: (C, H, W)
+            weights = np.mean(gradients, axis=(1, 2))
+            cam = np.zeros(activations.shape[1:], dtype=np.float32)
+            for i, w in enumerate(weights):
+                cam += w * activations[i, :, :]
+        else:
+            # Formato Swin-Transformer: (H, W, C)
+            weights = np.mean(gradients, axis=(0, 1))
+            cam = np.zeros(activations.shape[:2], dtype=np.float32)
+            for i, w in enumerate(weights):
+                cam += w * activations[:, :, i]
 
-        # Combinação linear ponderada das ativações
-        cam = np.zeros(activations.shape[1:], dtype=np.float32)
-        for i, w in enumerate(weights):
-            cam += w * activations[i, :, :]
-
-        # Aplica ReLU (apenas influências positivas) e normalização [0, 1]
         cam = np.maximum(cam, 0)
         if np.max(cam) > 0:
             cam = cam / np.max(cam)
@@ -152,10 +150,10 @@ def run_xai_gradcam(model_path, model_type, image_path, output_path):
         target_layer = model.layer4[-1]
     elif "cnn" in model_type:
         model = CustomCNN(num_classes)
-        target_layer = model.conv3
+        target_layer = model.features[12]
     elif "swin" in model_type:
         model = get_swin_tiny(num_classes)
-        target_layer = model.features[-1]
+        target_layer = model.norm
     else:
         raise ValueError(f"Tipo de modelo não suportado: {model_type}")
 
