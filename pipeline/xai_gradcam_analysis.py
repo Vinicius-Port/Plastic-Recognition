@@ -179,10 +179,11 @@ def run_xai_gradcam(model_path, model_type, image_path, output_path):
 
     # Redimensiona o mapa de calor para 224x224
     heatmap_resized = cv2.resize(heatmap, (224, 224))
-    heatmap_color = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
+    heatmap_bgr = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
+    heatmap_rgb = cv2.cvtColor(heatmap_bgr, cv2.COLOR_BGR2RGB)
 
     # Sobreposição transparente (Overlay)
-    overlay = cv2.addWeighted(orig_np, 0.6, heatmap_color, 0.4, 0)
+    overlay = cv2.addWeighted(orig_np, 0.6, heatmap_rgb, 0.4, 0)
 
     # Análise quantitativa de Borda vs Centro
     ratio, core_e, border_e = analyze_heatmap_activation_ratio(heatmap)
@@ -265,8 +266,9 @@ def generate_multi_model_grid_panel(image_path, models_dir, output_grid_path):
         pred_class = classes[pred_idx] if pred_idx < len(classes) else f"Classe_{pred_idx}"
 
         heatmap_resized = cv2.resize(heatmap, (224, 224))
-        heatmap_color = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
-        overlay = cv2.addWeighted(orig_np, 0.6, heatmap_color, 0.4, 0)
+        heatmap_bgr = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
+        heatmap_rgb = cv2.cvtColor(heatmap_bgr, cv2.COLOR_BGR2RGB)
+        overlay = cv2.addWeighted(orig_np, 0.6, heatmap_rgb, 0.4, 0)
 
         blk = np.zeros((224 + 32, 224, 3), dtype=np.uint8)
         lbl = np.zeros((32, 224, 3), dtype=np.uint8)
